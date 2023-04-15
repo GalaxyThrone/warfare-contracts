@@ -20,11 +20,23 @@ interface IShips {
 
     function setEnergy(uint256 shipId, uint256 amount) external;
 
+    function setAttack(uint256 shipId, uint256 amount) external;
+
+    function setDefense(uint256 shipId, uint256 amount) external;
+
     function getShip(uint256 id) external view returns (Ships.Ship memory);
 }
 
 contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
     uint256 constant TURN_TIME = 180;
+    uint256 constant ENERGY_COST_HEAL = 20;
+    uint256 constant ENERGY_COST_BOOST_ATTACK = 15;
+    uint256 constant ENERGY_COST_BOOST_DEFENSE = 15;
+    uint256 constant ENERGY_COST_RECHARGE_ENERGY = 10;
+    uint256 constant ENERGY_COST_WEAKEN_ATTACK = 20;
+    uint256 constant ENERGY_COST_WEAKEN_DEFENSE = 20;
+    uint256 constant ENERGY_COST_MULTIPLE_STRIKE = 30;
+    uint256 constant ENERGY_COST_DOUBLE_STRIKE = 25;
 
     IShips public ships;
     uint256 public nextGameId;
@@ -144,8 +156,48 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
                 attack(actions[i], matchId);
             } else if (actions[i].action == 2) {
                 // special 1
+                Ships.Ship memory fromShip = ships.getShip(actions[i].fromShip);
+                if (fromShip.special1 == 1) {
+                    heal(actions[i]);
+                } else if (fromShip.special1 == 2) {
+                    boostAttack(actions[i]);
+                } else if (fromShip.special1 == 3) {
+                    boostDefense(actions[i]);
+                } else if (fromShip.special1 == 4) {
+                    rechargeEnergy(actions[i]);
+                } else if (fromShip.special1 == 5) {
+                    weakenAttack(actions[i]);
+                } else if (fromShip.special1 == 6) {
+                    weakenDefense(actions[i]);
+                } else if (fromShip.special1 == 7) {
+                    multipleStrike(actions[i], matchId);
+                } else if (fromShip.special1 == 8) {
+                    doubleStrike(actions[i], matchId);
+                } else {
+                    revert("Invalid special 1");
+                }
             } else if (actions[i].action == 3) {
                 // special 2
+                Ships.Ship memory fromShip = ships.getShip(actions[i].fromShip);
+                if (fromShip.special2 == 1) {
+                    heal(actions[i]);
+                } else if (fromShip.special2 == 2) {
+                    boostAttack(actions[i]);
+                } else if (fromShip.special2 == 3) {
+                    boostDefense(actions[i]);
+                } else if (fromShip.special2 == 4) {
+                    rechargeEnergy(actions[i]);
+                } else if (fromShip.special2 == 5) {
+                    weakenAttack(actions[i]);
+                } else if (fromShip.special2 == 6) {
+                    weakenDefense(actions[i]);
+                } else if (fromShip.special2 == 7) {
+                    multipleStrike(actions[i], matchId);
+                } else if (fromShip.special2 == 8) {
+                    doubleStrike(actions[i], matchId);
+                } else {
+                    revert("Invalid special 2");
+                }
             } else if (actions[i].action == 4) {
                 rest(actions[i]);
             } else {
@@ -243,6 +295,143 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
             }
         }
         return false;
+    }
+
+    function heal(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(fromShip.energy >= ENERGY_COST_HEAL, "Not enough energy");
+        ships.setEnergy(action.fromShip, fromShip.energy - ENERGY_COST_HEAL);
+        ships.setHealth(
+            action.toShip,
+            ships.getShip(action.toShip).health + 50
+        );
+    }
+
+    function boostAttack(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_BOOST_ATTACK,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_BOOST_ATTACK
+        );
+        ships.setAttack(
+            action.toShip,
+            ships.getShip(action.toShip).attack + 20
+        );
+    }
+
+    function boostDefense(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_BOOST_DEFENSE,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_BOOST_DEFENSE
+        );
+        ships.setDefense(
+            action.toShip,
+            ships.getShip(action.toShip).defense + 20
+        );
+    }
+
+    function rechargeEnergy(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_RECHARGE_ENERGY,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_RECHARGE_ENERGY
+        );
+        ships.setEnergy(
+            action.toShip,
+            ships.getShip(action.toShip).energy + 20
+        );
+    }
+
+    function weakenAttack(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_WEAKEN_ATTACK,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_WEAKEN_ATTACK
+        );
+        ships.setAttack(
+            action.toShip,
+            ships.getShip(action.toShip).attack >= 15
+                ? ships.getShip(action.toShip).attack - 15
+                : 0
+        );
+    }
+
+    function weakenDefense(Action memory action) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_WEAKEN_DEFENSE,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_WEAKEN_DEFENSE
+        );
+        ships.setDefense(
+            action.toShip,
+            ships.getShip(action.toShip).defense >= 15
+                ? ships.getShip(action.toShip).defense - 15
+                : 0
+        );
+    }
+
+    function multipleStrike(Action memory action, uint256 matchId) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_MULTIPLE_STRIKE,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_MULTIPLE_STRIKE
+        );
+        Match storage match_ = matches[matchId];
+        uint256[3] memory opponentTeam;
+
+        if (match_.turn % 2 == 1) {
+            opponentTeam = match_.team2;
+        } else {
+            opponentTeam = match_.team1;
+        }
+
+        for (uint256 i = 0; i < opponentTeam.length; i++) {
+            Action memory newAction = Action({
+                fromShip: action.fromShip,
+                toShip: opponentTeam[i],
+                action: 1
+            });
+            attack(newAction, matchId);
+        }
+    }
+
+    function doubleStrike(Action memory action, uint256 matchId) internal {
+        Ships.Ship memory fromShip = ships.getShip(action.fromShip);
+        require(
+            fromShip.energy >= ENERGY_COST_DOUBLE_STRIKE,
+            "Not enough energy"
+        );
+        ships.setEnergy(
+            action.fromShip,
+            fromShip.energy - ENERGY_COST_DOUBLE_STRIKE
+        );
+        attack(action, matchId);
+        attack(action, matchId);
     }
 
     function onERC721Received(

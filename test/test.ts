@@ -3,47 +3,8 @@ import { ethers, upgrades } from "hardhat";
 import { Game, Ships, IShips } from "../typechain-types";
 import { ContractFactory, Signer } from "ethers";
 
-function getShipsForPlayer(playerIndex: number): any[] {
-  const baseIndex = playerIndex * 3;
-  return [
-    {
-      name: `Ship ${baseIndex + 1}`,
-      attack: 10 + playerIndex * 2,
-      defense: 5 + playerIndex,
-      health: 50 + playerIndex * 5,
-      energy: 20 + playerIndex * 5,
-      special1: 1,
-      special2: 2,
-      alive: true,
-    },
-    {
-      name: `Ship ${baseIndex + 2}`,
-      attack: 12 + playerIndex * 2,
-      defense: 6 + playerIndex,
-      health: 55 + playerIndex * 5,
-      energy: 25 + playerIndex * 5,
-      special1: 1,
-      special2: 2,
-      alive: true,
-    },
-    {
-      name: `Ship ${baseIndex + 3}`,
-      attack: 14 + playerIndex * 2,
-      defense: 7 + playerIndex,
-      health: 60 + playerIndex * 5,
-      energy: 30 + playerIndex * 5,
-      special1: 1,
-      special2: 2,
-      alive: true,
-    },
-  ];
-}
-
 async function mintShipsForPlayer(player: Signer, shipsContract: Ships) {
-  const playerIndex =
-    (await shipsContract.balanceOf(await player.getAddress())).toNumber() % 2;
-  const shipsData = getShipsForPlayer(playerIndex);
-  await shipsContract.connect(player).faucet(shipsData);
+  await shipsContract.connect(player).faucet([1, 2, 3]);
 }
 
 describe("Game Contract", () => {
@@ -211,7 +172,6 @@ describe("Game Contract", () => {
         game.connect(player1).takeTurn(1, actions)
       ).to.be.revertedWith("Each ship can only be used once per turn.");
     });
-
     it("should correctly execute takeTurn, update the match state and allow players to alternate turns", async () => {
       const actions1: [
         Game.ActionStruct,

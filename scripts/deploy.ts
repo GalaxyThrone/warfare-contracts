@@ -1,4 +1,5 @@
 import { ethers, upgrades } from "hardhat";
+import { addShips } from "./addShipTypes";
 
 async function main() {
   const Ships = await ethers.getContractFactory("Ships");
@@ -15,6 +16,8 @@ async function main() {
 
   console.log("Game deployed to:", game.address);
   console.log("Ships deployed to:", ships.address);
+
+  await addShips(ships.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
