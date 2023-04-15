@@ -2,9 +2,10 @@ import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { Game, Ships, IShips } from "../typechain-types";
 import { ContractFactory, Signer } from "ethers";
+import { addShips } from "../scripts/addShipTypes";
 
 async function mintShipsForPlayer(player: Signer, shipsContract: Ships) {
-  await shipsContract.connect(player).faucet([1, 2, 3]);
+  await shipsContract.connect(player).faucet([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 }
 
 describe("Game Contract", () => {
@@ -17,18 +18,21 @@ describe("Game Contract", () => {
 
   beforeEach(async () => {
     const Ships = await ethers.getContractFactory("Ships");
-    ships = (await upgrades.deployProxy(Ships, [
+    ships = (await Ships.deploy(
       ethers.constants.AddressZero,
-    ])) as Ships;
+      ethers.constants.AddressZero,
+      2
+    )) as Ships;
     await ships.deployed();
 
-    const GameFactory = (await ethers.getContractFactory(
-      "Game"
-    )) as ContractFactory;
-    game = (await upgrades.deployProxy(GameFactory, [ships.address])) as Game;
+    const Game = await ethers.getContractFactory("Game");
+
+    game = (await Game.deploy(ships.address)) as Game;
     await game.deployed();
 
     await ships.setGame(game.address);
+
+    await addShips(ships.address);
 
     const signers = await ethers.getSigners();
     player1 = signers[1];
@@ -43,7 +47,7 @@ describe("Game Contract", () => {
 
     // Register both players
     team1 = [1, 2, 3];
-    team2 = [4, 5, 6];
+    team2 = [11, 14, 20];
     await game.connect(player1).register(team1);
     await game.connect(player2).register(team2);
   });
@@ -68,9 +72,9 @@ describe("Game Contract", () => {
     it("should correctly execute takeTurn and update the match state", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 3, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 3, toShip: 20, action: 1 },
         ];
 
       await game.connect(player1).takeTurn(1, actions);
@@ -82,9 +86,9 @@ describe("Game Contract", () => {
     it("should correctly handle invalid action in takeTurn and revert", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 5 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 3, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 5 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 3, toShip: 20, action: 1 },
         ];
 
       await expect(
@@ -95,9 +99,9 @@ describe("Game Contract", () => {
     it("should revert if the match doesn't exist", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 3, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 3, toShip: 20, action: 1 },
         ];
 
       await expect(
@@ -108,9 +112,9 @@ describe("Game Contract", () => {
     it("should revert if the player is not part of the match", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 3, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 3, toShip: 20, action: 1 },
         ];
 
       const otherPlayer = (await ethers.getSigners())[3];
@@ -122,9 +126,9 @@ describe("Game Contract", () => {
     it("should revert if it's not the player's turn", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 3, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 3, toShip: 20, action: 1 },
         ];
 
       await expect(
@@ -135,9 +139,9 @@ describe("Game Contract", () => {
     it("should revert if the ship is not part of the player's team", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 4, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 4, toShip: 20, action: 1 },
         ];
 
       await expect(
@@ -148,8 +152,8 @@ describe("Game Contract", () => {
     it("should revert if the target ship is not part of the opponent's team", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
           { fromShip: 3, toShip: 1, action: 1 },
         ];
 
@@ -163,9 +167,9 @@ describe("Game Contract", () => {
     it("should revert if the same ship is used more than once in a turn", async () => {
       const actions: [Game.ActionStruct, Game.ActionStruct, Game.ActionStruct] =
         [
-          { fromShip: 1, toShip: 4, action: 1 },
-          { fromShip: 2, toShip: 5, action: 1 },
-          { fromShip: 2, toShip: 6, action: 1 },
+          { fromShip: 1, toShip: 11, action: 1 },
+          { fromShip: 2, toShip: 14, action: 1 },
+          { fromShip: 2, toShip: 20, action: 1 },
         ];
 
       await expect(
@@ -178,9 +182,9 @@ describe("Game Contract", () => {
         Game.ActionStruct,
         Game.ActionStruct
       ] = [
-        { fromShip: 1, toShip: 4, action: 1 },
-        { fromShip: 2, toShip: 5, action: 1 },
-        { fromShip: 3, toShip: 6, action: 1 },
+        { fromShip: 1, toShip: 11, action: 1 },
+        { fromShip: 2, toShip: 14, action: 1 },
+        { fromShip: 3, toShip: 20, action: 1 },
       ];
 
       const actions2: [
@@ -188,9 +192,9 @@ describe("Game Contract", () => {
         Game.ActionStruct,
         Game.ActionStruct
       ] = [
-        { fromShip: 4, toShip: 1, action: 1 },
-        { fromShip: 5, toShip: 2, action: 1 },
-        { fromShip: 6, toShip: 3, action: 1 },
+        { fromShip: 11, toShip: 1, action: 1 },
+        { fromShip: 14, toShip: 2, action: 1 },
+        { fromShip: 20, toShip: 3, action: 1 },
       ];
 
       // Listen for TurnTaken events

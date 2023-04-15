@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {Ships} from "./Ships.sol";
 
 interface IShips {
@@ -24,10 +24,12 @@ interface IShips {
 
     function setDefense(uint256 shipId, uint256 amount) external;
 
+    function reviveShip(uint256 shipId) external;
+
     function getShip(uint256 id) external view returns (Ships.Ship memory);
 }
 
-contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
+contract Game is Ownable, IERC721Receiver {
     uint256 constant TURN_TIME = 180;
     uint256 constant ENERGY_COST_HEAL = 20;
     uint256 constant ENERGY_COST_BOOST_ATTACK = 15;
@@ -61,8 +63,7 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
         uint32 lastMoveAt;
     }
 
-    function initialize(IShips _ships) public initializer {
-        __Ownable_init();
+    constructor(IShips _ships) {
         ships = _ships;
         nextGameId = 1;
     }
@@ -137,8 +138,9 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
             opponentTeam = match_.team1;
         }
 
-        for (uint256 i = 0; i < actions.length; i++) {
-            for (uint256 j = i + 1; j < actions.length; j++) {
+        for (uint256 i = 0; i < 3; i++) {
+            if (actions[i].fromShip == 0) continue;
+            for (uint256 j = i + 1; j < 3; j++) {
                 require(
                     actions[i].fromShip != actions[j].fromShip,
                     "Each ship can only be used once per turn."
@@ -147,10 +149,6 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
             require(
                 isInTeam(actions[i].fromShip, currentPlayerTeam),
                 "The ship is not part of your team."
-            );
-            require(
-                isInTeam(actions[i].toShip, opponentTeam),
-                "The target ship is not part of the opponent's team."
             );
             if (actions[i].action == 1) {
                 attack(actions[i], matchId);
@@ -224,6 +222,7 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
         require(checkTeamDead(team1) || checkTeamDead(team2), "Match not over");
 
         for (uint256 i = 0; i < match_.team1.length; i++) {
+            ships.reviveShip(match_.team1[i]);
             ships.safeTransferFrom(
                 address(this),
                 match_.player1,
@@ -231,6 +230,7 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
             );
         }
         for (uint256 i = 0; i < match_.team2.length; i++) {
+            ships.reviveShip(match_.team2[i]);
             ships.safeTransferFrom(
                 address(this),
                 match_.player2,
@@ -244,7 +244,12 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
         Ships.Ship memory attacker = ships.getShip(action.fromShip);
         Ships.Ship memory defender = ships.getShip(action.toShip);
 
-        uint256 baseDamage = attacker.attack - defender.defense;
+        uint256 baseDamage;
+        if (attacker.attack > defender.defense) {
+            baseDamage = attacker.attack - defender.defense;
+        } else {
+            baseDamage = 0;
+        }
 
         uint256 randomFactor = uint256(
             keccak256(
@@ -271,7 +276,7 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
 
     function rest(Action memory action) internal {
         Ships.Ship memory ship = ships.getShip(action.fromShip);
-        ships.setHealth(action.fromShip, ship.energy + 10);
+        ships.setHealth(action.fromShip, ship.energy + 30);
     }
 
     function checkTeamDead(
@@ -440,7 +445,7 @@ contract Game is OwnableUpgradeable, IERC721ReceiverUpgradeable {
         uint256,
         bytes calldata
     ) external pure returns (bytes4) {
-        return IERC721ReceiverUpgradeable.onERC721Received.selector;
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     function setShips(IShips _ships) external onlyOwner {

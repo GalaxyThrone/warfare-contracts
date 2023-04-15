@@ -115,4 +115,15 @@ export async function addShips(shipsAddress: string) {
 
   const addShipTx = await shipContract.addShipTypes(shipTypes, ids);
   await addShipTx.wait();
+
+  console.log("DONE SHIPTYPES");
+}
+
+if (require.main === module) {
+  addShips("0x6faAe4df861D296b8baD3772bF4EFdC4A5A7251b")
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
 }
